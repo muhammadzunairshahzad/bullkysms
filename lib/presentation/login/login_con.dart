@@ -12,20 +12,31 @@ class LoginCon extends GetxController {
   RxString mobError = "".obs;
   RxBool obscureText = true.obs;
   RxBool isLoading = false.obs;
+
   @override
   Future<void> onInit() async {
     super.onInit();
+    await debugPrintAllUsers();
     await autoLogin();
   }
+
   Future<void> launchInBrowser(Uri url) async {
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       throw Exception('Could not launch $url');
     }
   }
 
+  static Future<void> debugPrintAllUsers() async {
+    try {
+      final db = await SQLite.instance.database;
+      final users = await db.rawQuery('SELECT * FROM User');
+      developer.log("All users in database: $users");
+    } catch (e) {
+      developer.log("Error reading users: $e");
+    }
+  }
+
   Future<void> checkLogin() async {
-    Get.offAllNamed(AppRoutes.home);
-    return;
     if (Functions.isEmail(emailCon.text.toString()) == false) {
       emailError.value = "Must Enter Valid Email";
       emailNode.requestFocus();
@@ -41,7 +52,7 @@ class LoginCon extends GetxController {
       passError.value = "";
     }
     if (mobCon.text.toString().length < 5) {
-      mobError.value = "Must Enter Valid Password / API Key";
+      mobError.value = "Must Enter Valid Mobile";
       mobNode.requestFocus();
       return;
     } else {
@@ -58,6 +69,8 @@ class LoginCon extends GetxController {
         'AppType': Platform.isIOS ? 'iOS' : 'Android',
         'UserName': emailCon.text.trim(),
         'Password': passCon.text.trim(),
+        'Mobile': mobCon.text.trim(),
+        'AppVersion': "1.0",
         'Token': Constants.appToken,
       };
       if (kDebugMode) {
@@ -86,22 +99,30 @@ class LoginCon extends GetxController {
       isLoading.value = false;
       if (msgResult == 'Success') {
         final db = await SQLite.instance.database;
-        await db.rawQuery("""
+        try {
+          await db.rawQuery("""
         UPDATE User SET
-        UserID = ${response["PatientID"]},
         Email = '${emailCon.text.trim()}',
         Password = '${passCon.text.trim()}',
         Mobile = '${mobCon.text.trim()}',
-        AppKey = '${response["AppKey"]}'
+        APIKey = '${response["ApiKey"]}'
         WHERE UserID = 0
         """);
+        } catch (e) {
+          developer.log("Error: $e");
+        }
 
-        // Constants.userID = int.parse(response["UserID"]);
-        Constants.appKey = response["AppKey"];
+        Constants.name = response["Name"];
+        Constants.userID = response["UserID"];
+        Constants.clientID = response["ClientID"];
+        Constants.clientID = response["ClientMobID"];
+        Constants.apiKey = response["ApiKey"];
         Constants.mobile = mobCon.text.trim();
-
+        Constants.email = emailCon.text.trim();
+        Constants.password = passCon.text.trim();
+        Constants.clientMobID = response["ClientMobID"];
         if (kDebugMode) {
-          print("${Constants.appKey} - ${Constants.userID}");
+          print("${Constants.apiKey} - ${Constants.userID}");
         }
         passCon.text = "";
         Get.offAllNamed(AppRoutes.home);
@@ -118,7 +139,7 @@ class LoginCon extends GetxController {
       final queryData = await db.rawQuery(
         "SELECT Email, Password, Mobile FROM User WHERE UserID = 0",
       );
-
+      developer.log("QueryData: ${queryData.toString()}");
       if (queryData.isNotEmpty) {
         final row = queryData[0];
         final email = row["Email"]?.toString() ?? "";
@@ -129,7 +150,7 @@ class LoginCon extends GetxController {
           emailCon.text = email;
           passCon.text = password;
           mobCon.text = mobile;
-          // await Future.delayed(const Duration(milliseconds: 300));
+          await Future.delayed(const Duration(milliseconds: 300));
           await checkLogin();
         }
       }

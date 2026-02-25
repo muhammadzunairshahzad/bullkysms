@@ -13,52 +13,53 @@ import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'firebase_options.dart';
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 final List<DarwinNotificationCategory> darwinNotificationCategories =
-<DarwinNotificationCategory>[
-  DarwinNotificationCategory(
-    "PrimeMedic",
-    actions: <DarwinNotificationAction>[
-      DarwinNotificationAction.text(
-        'text_1',
-        'Action 1',
-        buttonTitle: 'Send',
-        placeholder: 'Placeholder',
+    <DarwinNotificationCategory>[
+      DarwinNotificationCategory(
+        "BullkySMS",
+        actions: <DarwinNotificationAction>[
+          DarwinNotificationAction.text(
+            'text_1',
+            'Action 1',
+            buttonTitle: 'Send',
+            placeholder: 'Placeholder',
+          ),
+        ],
       ),
-    ],
-  ),
-  DarwinNotificationCategory(
-    "PrimeMedic",
-    actions: <DarwinNotificationAction>[
-      DarwinNotificationAction.plain('id_1', 'Action 1'),
-      DarwinNotificationAction.plain(
-        'id_2',
-        'Action 2 (destructive)',
-        options: <DarwinNotificationActionOption>{
-          DarwinNotificationActionOption.destructive,
+      DarwinNotificationCategory(
+        "BullkySMS",
+        actions: <DarwinNotificationAction>[
+          DarwinNotificationAction.plain('id_1', 'Action 1'),
+          DarwinNotificationAction.plain(
+            'id_2',
+            'Action 2 (destructive)',
+            options: <DarwinNotificationActionOption>{
+              DarwinNotificationActionOption.destructive,
+            },
+          ),
+          DarwinNotificationAction.plain(
+            "id_3",
+            'Action 3 (foreground)',
+            options: <DarwinNotificationActionOption>{
+              DarwinNotificationActionOption.foreground,
+            },
+          ),
+          DarwinNotificationAction.plain(
+            'id_4',
+            'Action 4 (auth required)',
+            options: <DarwinNotificationActionOption>{
+              DarwinNotificationActionOption.authenticationRequired,
+            },
+          ),
+        ],
+        options: <DarwinNotificationCategoryOption>{
+          DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
         },
       ),
-      DarwinNotificationAction.plain(
-        "id_3",
-        'Action 3 (foreground)',
-        options: <DarwinNotificationActionOption>{
-          DarwinNotificationActionOption.foreground,
-        },
-      ),
-      DarwinNotificationAction.plain(
-        'id_4',
-        'Action 4 (auth required)',
-        options: <DarwinNotificationActionOption>{
-          DarwinNotificationActionOption.authenticationRequired,
-        },
-      ),
-    ],
-    options: <DarwinNotificationCategoryOption>{
-      DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
-    },
-  ),
-];
+    ];
 // @pragma('vm:entry-point')
 // void callbackDispatcher() {
 //   Workmanager().executeTask((task, inputData) async {
@@ -75,7 +76,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final notification = message.notification;
   if (notification != null) {
     flutterLocalNotificationsPlugin.show(
-     title: notification.title,
+      title: notification.title,
       body: notification.body,
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -84,21 +85,23 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           importance: Importance.high,
           priority: Priority.high,
         ),
-      ), id: 0,
+      ),
+      id: 0,
     );
   }
 }
+
 RemoteMessage? globalInitialMessage;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   requestPermission();
   await initInfo();
   runApp(const MyApp());
 }
+
 void requestPermission() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   NotificationSettings settings = await messaging.requestPermission(
@@ -111,30 +114,28 @@ void requestPermission() async {
     sound: true,
   );
   if (kDebugMode) {
-    print('User granted permission: ${settings.authorizationStatus}');
+    log('User granted permission: ${settings.authorizationStatus}');
   }
-if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+  if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     if (kDebugMode) {
-      print("User granted permission");
+      log("User granted permission");
     }
   } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
     if (kDebugMode) {
-      print("User granted provisional permission");
+      log("User granted provisional permission");
     }
   } else {
     if (await Permission.notification.isDenied) {
       await Permission.notification.request();
     }
     if (kDebugMode) {
-      print('User declined or has not accepted permission');
+      log('User declined or has not accepted permission');
     }
   }
 }
+
 Future<bool> ensureSmsPermissions() async {
-  final statuses = await [
-    Permission.sms,
-    Permission.phone,
-  ].request();
+  final statuses = await [Permission.sms, Permission.phone].request();
   bool allGranted = statuses.values.every((s) => s.isGranted);
   if (!allGranted) {
     Get.snackbar(
@@ -145,9 +146,11 @@ Future<bool> ensureSmsPermissions() async {
   }
   return true;
 }
+
 final StreamController<ReceivedNotification> didReceiveLocalNotificationStream =
-StreamController<ReceivedNotification>.broadcast();
+    StreamController<ReceivedNotification>.broadcast();
 Map<String, dynamic>? lastNotificationData;
+
 Future<void> initInfo() async {
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
     alert: true,
@@ -179,7 +182,7 @@ Future<void> initInfo() async {
     lastNotificationData = message.data;
     log("lastNotificationData $lastNotificationData");
     if (kDebugMode) {
-      print("..................onMessage..................");
+      log("..................onMessage..................");
     }
     if (kDebugMode) {
       log(
@@ -188,7 +191,7 @@ Future<void> initInfo() async {
     }
     if (message.notification != null) {
       if (kDebugMode) {
-        print('Message also contained a notification: ${message.notification}');
+        log('Message also contained a notification: ${message.notification}');
       }
     }
 
@@ -206,38 +209,40 @@ Future<void> initInfo() async {
       playSound: true,
       enableVibration: true,
     );
-    AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      channel.id,
-      channel.name,
-      importance: Importance.max,
-      priority: Priority.high,
-      styleInformation: bigTextStyleInformation,
-      playSound: true,
-    );
+    AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+          channel.id,
+          channel.name,
+          importance: Importance.max,
+          priority: Priority.high,
+          styleInformation: bigTextStyleInformation,
+          playSound: true,
+        );
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-    >()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
     NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
       iOS: const DarwinNotificationDetails(),
     );
     await flutterLocalNotificationsPlugin.show(
-
-     title:  message.notification?.title,
-    body:   message.notification?.body,
-    notificationDetails:   platformChannelSpecifics,
-      payload: message.data['body'], id: 0,
+      title: message.notification?.title,
+      body: message.notification?.body,
+      notificationDetails: platformChannelSpecifics,
+      payload: message.data['body'],
+      id: 0,
     );
   });
 
   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    debugPrint("Url: ${message.data['title']}");
+    log("Url: ${message.data['title']}");
     lastNotificationData = message.data;
     log("lastNotificationData $lastNotificationData");
   });
 }
+
 class ReceivedNotification {
   ReceivedNotification({
     required this.id,
@@ -251,8 +256,10 @@ class ReceivedNotification {
   final String? body;
   final String? payload;
 }
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(

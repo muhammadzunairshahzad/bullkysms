@@ -1,16 +1,25 @@
 part of 'homepage_bin.dart';
 
+@pragma('vm:entry-point')
+void backgroundMessageHandler(SmsMessage message) async {
+  developer.log("📱 Background SMS received from: ${message.address}");
+  developer.log("📱 Background SMS body: ${message.body}");
+}
+
 class HomepageCon extends GetxController {
+  final Telephony telephony = Telephony.instance;
   RxBool isSending = false.obs;
-  final SmsSender smsSender = SmsSender();
   final RxList<IndividualSms> smsList = <IndividualSms>[].obs;
   final SimData _simDataPlugin = SimData();
-  RxList<AndroidSMSMessage> inboxMessages = <AndroidSMSMessage>[].obs;
+  RxList<SmsMessage> inboxMessages = <SmsMessage>[].obs;
+  RxList<SmsMessage> sim1Messages = <SmsMessage>[].obs;
+  RxList<SmsMessage> sim2Messages = <SmsMessage>[].obs;
   bool isListening = false;
   final Battery battery = Battery();
   RxInt batteryLevel = 0.obs;
   BatteryState batteryState = BatteryState.unknown;
   StreamSubscription? batterySubscription;
+
   Future<int> getBatteryPercentage() async {
     try {
       final level = await battery.batteryLevel;
@@ -26,66 +35,72 @@ class HomepageCon extends GetxController {
   }
 
   Future<void> initSmsReader() async {
-    var status = await Permission.sms.status;
-    if (!status.isGranted) {
+    bool? permissionsGranted = await telephony.requestPhoneAndSmsPermissions;
 
-      status = await Permission.sms.request();
-    }
-    // 1. Request Permissions via the plugin's own method
-    final granted = await AndroidSMSReader.requestPermissions();
-
-    if (granted) {
-
-      final initialMessages = await AndroidSMSReader.fetchMessages(
-        type: AndroidSMSType.inbox,
-        start: 0,
-        count: 20,
+    if (permissionsGranted ?? false) {
+      List<SmsMessage> messages = await telephony.getInboxSms(
+        columns: [
+          SmsColumn.ID,
+          SmsColumn.ADDRESS,
+          SmsColumn.BODY,
+          SmsColumn.DATE,
+          SmsColumn.SUBSCRIPTION_ID,
+        ],
+        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
       );
-      inboxMessages.assignAll(initialMessages);
 
-      if (!isListening) {
-        AndroidSMSReader.observeIncomingMessages().listen((message) {
+      inboxMessages.assignAll(messages);
+      await _sortMessagesBySim(messages);
+
+      telephony.listenIncomingSms(
+        onNewMessage: (SmsMessage message) async {
           inboxMessages.insert(0, message);
-
-          developer.log("New SMS from: ${message.address}");
-        });
-        isListening = true;
-      }
-    } else {
-      Get.snackbar("Permission Denied", "Cannot read inbox without SMS permission.");
+          await _addMessageToCorrectSim(message);
+          update();
+          developer.log("New SMS received and added to UI");
+        },
+        listenInBackground: true,
+        onBackgroundMessage: backgroundMessageHandler,
+      );
     }
   }
-  Future<int?> getSubscriptionIdForSlot(int targetSlotIndex) async {
+
+  Future<void> _sortMessagesBySim(List<SmsMessage> messages) async {
+    sim1Messages.clear();
+    sim2Messages.clear();
+
+    final List<SimDataModel> cards = await _simDataPlugin.getSimData();
+
+    Map<int, int> subToSlot = {
+      for (var e in cards) e.subscriptionId: e.simSlotIndex,
+    };
+
+    for (var msg in messages) {
+      int? slot = subToSlot[msg.subscriptionId];
+      if (slot == 0) {
+        sim1Messages.add(msg);
+      } else if (slot == 1) {
+        sim2Messages.add(msg);
+      }
+    }
+  }
+
+  Future<void> _addMessageToCorrectSim(SmsMessage msg) async {
+    final List<SimDataModel> cards = await _simDataPlugin.getSimData();
+    int? slotIndex;
     try {
-      bool hasPerm = await smsSender.checkPhoneStatePermission();
-      if (!hasPerm) await smsSender.requestPhoneStatePermission();
-
-
-      final simDataPlugin = SimData();
-      final List<SimDataModel> cards = await simDataPlugin.getSimData();
-
-      for (var card in cards) {
-        if (card.simSlotIndex == targetSlotIndex) {
-          developer.log("Found SubscriptionId: ${card.subscriptionId} for Slot: $targetSlotIndex");
-          return card.subscriptionId;
-        }
-      }
+      slotIndex = cards
+          .firstWhere((e) => e.subscriptionId == msg.subscriptionId)
+          .simSlotIndex;
     } catch (e) {
-      developer.log("Error fetching Subscription ID: $e");
+      developer.log(
+        "Could not determine slot for subId: ${msg.subscriptionId}",
+      );
     }
-    return null;
-  }
-  void addIndividualSms({
-    required String number,
-    required String message,
-    required int simSlot,
-  }) {
-    smsList.add(
-      IndividualSms(number: number, message: message, simSlot: simSlot),
-    );
-
-    if (kDebugMode) {
-      developer.log('Added SMS to list: $number | SIM ${simSlot + 1}');
+    if (slotIndex == 0) {
+      sim1Messages.insert(0, msg);
+    } else if (slotIndex == 1) {
+      sim2Messages.insert(0, msg);
     }
   }
 
@@ -96,6 +111,7 @@ class HomepageCon extends GetxController {
       developer.log('Added ${messages.length} SMS to list');
     }
   }
+
   Future<void> sendAllSms() async {
     if (smsList.isEmpty || isSending.value) return;
 
@@ -111,7 +127,9 @@ class HomepageCon extends GetxController {
         SimDataModel? targetSim;
 
         try {
-          targetSim = cards.firstWhere((card) => card.simSlotIndex == sms.simSlot);
+          targetSim = cards.firstWhere(
+            (card) => card.simSlotIndex == sms.simSlot,
+          );
         } catch (_) {
           targetSim = cards.isNotEmpty ? cards.first : null;
         }
@@ -119,47 +137,53 @@ class HomepageCon extends GetxController {
         if (targetSim == null) continue;
 
         try {
-          // --- THE KEY FIX IS HERE ---
-          // We wrap the call in a timeout. If the plugin hangs for more than 3 seconds,
-          // we "force" it to move to the next SMS.
-          await _simDataPlugin.sendSMS(
-            phoneNumber: sms.number,
-            message: sms.message,
-            subId: targetSim.subscriptionId,
-          ).timeout(const Duration(seconds: 3), onTimeout: () {
-            developer.log("Timeout reached for ${sms.number}, moving to next.");
-            return; // This completes the await and lets the loop continue
-          });
+          await _simDataPlugin
+              .sendSMS(
+                phoneNumber: sms.number,
+                message: sms.message,
+                subId: targetSim.subscriptionId,
+              )
+              .timeout(
+                const Duration(seconds: 3),
+                onTimeout: () {
+                  developer.log(
+                    "Timeout reached for ${sms.number}, moving to next.",
+                  );
+                  return;
+                },
+              );
 
           successCount++;
           smsList[i] = sms.copyWith(status: SmsStatus.sent);
-          developer.log('✅ Progress: ${i+1}/${smsList.length}');
+          developer.log('✅ Progress: ${i + 1}/${smsList.length}');
 
-          // Carrier delay - very important for dual SIM phones
           if (i < smsList.length - 1) {
             await Future.delayed(const Duration(seconds: 5));
           }
         } catch (e) {
           failCount++;
-          smsList[i] = sms.copyWith(status: SmsStatus.failed, error: e.toString());
+          smsList[i] = sms.copyWith(
+            status: SmsStatus.failed,
+            error: e.toString(),
+          );
           developer.log('❌ Failed ${sms.number}: $e');
         }
       }
     } catch (globalError) {
       developer.log("Global SMS Error: $globalError");
     } finally {
-      // Ensuring this always runs so the UI isn't stuck on "Sending..."
       isSending.value = false;
       _showResultDialog(successCount, failCount);
     }
   }
+
   void _showResultDialog(int success, int fail) {
     Get.defaultDialog(
       title: 'Campaign Complete',
       content: Column(
         children: [
-          Text('✅ Success: $success'),
-          Text('❌ Failed: $fail'),
+          Text('Success: $success'),
+          Text('Failed: $fail'),
           const SizedBox(height: 10),
           ElevatedButton(onPressed: () => Get.back(), child: const Text('OK')),
         ],
@@ -167,14 +191,12 @@ class HomepageCon extends GetxController {
     );
   }
 
-
   void clearAllSms() {
     smsList.clear();
     if (kDebugMode) {
       developer.log("All SMS Removed");
     }
   }
-
 
   void loadSampleData() {
     smsList.clear();
@@ -198,10 +220,7 @@ class HomepageCon extends GetxController {
         simSlot: 0,
       ),
     ]);
-
   }
-
-
 
   @override
   void onInit() async {
@@ -211,9 +230,10 @@ class HomepageCon extends GetxController {
       initSmsReader();
       initBatteryInfo();
       startListening();
+      smsGet();
     });
-
   }
+
   Future<void> askPermission() async {
     try {
       Map<Permission, PermissionStatus> statuses = await [
@@ -227,35 +247,42 @@ class HomepageCon extends GetxController {
       });
 
       await Future.delayed(const Duration(milliseconds: 500));
-
     } catch (e) {
       developer.log("Permission sequence error: $e");
     }
   }
+
   Future<void> initBatteryInfo() async {
     final level = await battery.batteryLevel;
     final state = await battery.batteryState;
-
-
     batteryLevel.value = level;
     batteryState = state;
-
   }
+
+  @override
+  void onClose() {
+    batterySubscription?.cancel();
+    developer.log("HomepageCon disposed: Battery listener stopped.");
+    super.onClose();
+  }
+
   void startListening() {
     batterySubscription?.cancel();
-    batterySubscription = battery.onBatteryStateChanged.listen((BatteryState state) {
+    batterySubscription = battery.onBatteryStateChanged.listen((
+      BatteryState state,
+    ) {
       batteryState = state;
       updateBatteryLevel();
       update();
       developer.log("Battery State Changed: $state");
     });
   }
+
   Future<void> updateBatteryLevel() async {
     final level = await battery.batteryLevel;
-
-      batteryLevel.value = level;
-
+    batteryLevel.value = level;
   }
+
   String getBatteryStateText(BatteryState state) {
     switch (state) {
       case BatteryState.charging:
@@ -264,17 +291,63 @@ class HomepageCon extends GetxController {
         return 'Discharging';
       case BatteryState.full:
         return 'Full 🔋';
+      case BatteryState.connectedNotCharging:
+        return 'Connected (Not Charging) 🔌';
       case BatteryState.unknown:
         return 'Unknown';
-      case BatteryState.connectedNotCharging:
-        // TODO: Handle this case.
-        throw UnimplementedError();
     }
   }
+
   Color getBatteryColor(int level) {
     if (level > 50) return Colors.green;
     if (level > 20) return Colors.orange;
     return Colors.red;
+  }
+
+  Future<void> smsGet() async {
+    var msgResult = "";
+    dynamic response;
+    try {
+      var jsonMap = {
+        'DocType': 'GetSMS',
+        'DocDate': DateTime.now().toString(),
+        'AppType': Platform.isIOS ? 'iOS' : 'Android',
+        'UserName': Constants.email,
+        'Password': Constants.password,
+        'Mobile': Constants.mobile,
+        'AppVersion': "1.0",
+        'Token': Constants.appToken,
+        'ClientMobID': Constants.clientMobID,
+      };
+      if (kDebugMode) {
+        print(jsonMap);
+      }
+      response = await Functions.sendJson(jsonMap, 'sms_get');
+      if (kDebugMode) {
+        print(response);
+      }
+      if (response == '') {
+        msgResult = "Can't Connect - Try again.";
+        return;
+      }
+      if (response["DocType"] == "Error") {
+        msgResult = response["Message"];
+        return;
+      }
+      if (response["DocType"] == "Delete Requested") {
+        msgResult = "DeleteReq";
+        return;
+      }
+      msgResult = "Success";
+    } catch (e) {
+      msgResult = "Check Internet Connection & Try again.";
+    } finally {
+      if (msgResult == 'Success') {
+        developer.log(response.toString());
+      } else {
+        DialogUtils.errorDialog(msgResult);
+      }
+    }
   }
 }
 

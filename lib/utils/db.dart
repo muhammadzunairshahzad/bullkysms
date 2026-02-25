@@ -60,7 +60,7 @@ class SQLite {
     return value;
   }
 
-  static updateValue(
+  static Future<void> updateValue(
     String field,
     String table,
     String where,

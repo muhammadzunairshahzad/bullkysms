@@ -26,10 +26,10 @@ class HomepageScr extends StatelessWidget {
               final db = await SQLite.instance.database;
               await db.rawQuery("""
         UPDATE User SET
-        UserID = '',
         Email = '',
         Password = '',
         Mobile = '',
+        APIKey = '',
         AppKey = ''
         WHERE UserID = 0
         """);
@@ -73,101 +73,149 @@ class HomepageScr extends StatelessWidget {
             },
             icon: Icon(Icons.add),
           ),
-         Obx(()=> Column(
-           mainAxisAlignment: MainAxisAlignment.center,
-           children: [
-             Stack(
-               alignment: Alignment.center,
-               children: [
-                 Container(
-                   width: 120,
-                   height: 60,
-                   decoration: BoxDecoration(
-                     border: Border.all(color: Colors.grey, width: 2),
-                     borderRadius: BorderRadius.circular(8),
-                   ),
-                 ),
-                 Positioned(
-                   right: -12,
-                   child: Container(
-                     width: 10,
-                     height: 20,
-                     decoration: BoxDecoration(
-                       color: Colors.grey,
-                       borderRadius: BorderRadius.circular(2),
-                     ),
-                   ),
-                 ),
-                 AnimatedContainer(
-                   duration: Duration(milliseconds: 300),
-                   width: 100 * (con.batteryLevel.value / 100),
-                   height: 50,
-                   decoration: BoxDecoration(
-                     color: con.getBatteryColor(con.batteryLevel.value),
-                     borderRadius: BorderRadius.circular(4),
-                   ),
-                 ),
-                 Text(
-                   '${con.batteryLevel.value}%',
-                   style: TextStyle(
-                     fontSize: 18,
-                     fontWeight: FontWeight.bold,
-                     color: con.batteryLevel.value > 30 ? Colors.white : Colors.black,
-                   ),
-                 ),
-               ],
-             ),
-             SizedBox(height: 30),
-             Text(
-               con.getBatteryStateText(con.batteryState),
-               style: TextStyle(
-                 fontSize: 20,
-                 color: con.batteryState == BatteryState.charging
-                     ? Colors.green
-                     : Colors.grey,
-               ),
-             ),
-             SizedBox(height: 20),
-             ElevatedButton(
-               onPressed: con.initBatteryInfo,
-               child: Text('Refresh Battery Info'),
-             ),
-           ],
-         ),),
+          Obx(
+            () => Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey, width: 2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    Positioned(
+                      right: -12,
+                      child: Container(
+                        width: 10,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.grey,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      width: 100 * (con.batteryLevel.value / 100),
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: con.getBatteryColor(con.batteryLevel.value),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    Text(
+                      '${con.batteryLevel.value}%',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: con.batteryLevel.value > 30
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 30),
+                Text(
+                  con.getBatteryStateText(con.batteryState),
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: con.batteryState == BatteryState.charging
+                        ? Colors.green
+                        : Colors.grey,
+                  ),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: con.initBatteryInfo,
+                  child: Text('Refresh Battery Info'),
+                ),
+              ],
+            ),
+          ),
           Expanded(
-            child: Obx(() => ListView.builder(
-              itemCount: con.inboxMessages.length,
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              itemBuilder: (context, index) {
-                final msg = con.inboxMessages[index];
-                return Card(
-                  elevation: 0.5,
-                  margin: EdgeInsets.symmetric(vertical: 5),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: CColor.red.withOpacity(0.1),
-                      child: Icon(Icons.sms, color: CColor.red),
-                    ),
-                    title: Text(
-                      msg.address,
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(msg.body),
-                    trailing: Text(
-                      _formatDate(msg.date),
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
+            child: DefaultTabController(
+              length: 2,
+              child: Column(
+                children: [
+                  const TabBar(
+                    labelColor: Colors.red,
+                    unselectedLabelColor: Colors.grey,
+                    tabs: [
+                      Tab(text: "SIM 1", icon: Icon(Icons.sim_card)),
+                      Tab(text: "SIM 2", icon: Icon(Icons.sim_card)),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _buildSmsList(con.sim1Messages),
+                        _buildSmsList(con.sim2Messages),
+                      ],
                     ),
                   ),
-                );
-              },
-            )),
+                ],
+              ),
+            ),
           ),
+          // Expanded(
+          //   child: Obx(() => ListView.builder(
+          //     itemCount: con.inboxMessages.length,
+          //     padding: EdgeInsets.symmetric(horizontal: 10),
+          //     itemBuilder: (context, index) {
+          //       final msg = con.inboxMessages[index];
+          //       return Card(
+          //         elevation: 0.5,
+          //         margin: EdgeInsets.symmetric(vertical: 5),
+          //         child: ListTile(
+          //           leading: CircleAvatar(
+          //             backgroundColor: CColor.red.withOpacity(0.1),
+          //             child: Icon(Icons.sms, color: CColor.red),
+          //           ),
+          //           title: Text(
+          //             msg.address,
+          //             style: TextStyle(fontWeight: FontWeight.bold),
+          //           ),
+          //           subtitle: Text(msg.body),
+          //           trailing: Text(
+          //             _formatDate(msg.date),
+          //             style: TextStyle(fontSize: 10, color: Colors.grey),
+          //           ),
+          //         ),
+          //       );
+          //     },
+          //   )),
+          // ),
         ],
       ),
     );
   }
-  String _formatDate(int milliseconds) {
-    var date = DateTime.fromMillisecondsSinceEpoch(milliseconds);
-    return "${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+
+  Widget _buildSmsList(RxList<SmsMessage> list) {
+    return Obx(
+      () => list.isEmpty
+          ? Center(child: Text("No messages for this SIM"))
+          : ListView.builder(
+              itemCount: list.length,
+              padding: const EdgeInsets.all(10),
+              itemBuilder: (context, index) {
+                final msg = list[index];
+                return Card(
+                  child: ListTile(
+                    title: Text(
+                      msg.address ?? "Unknown",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(msg.body ?? "Unknow"),
+                  ),
+                );
+              },
+            ),
+    );
   }
 }

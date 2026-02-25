@@ -23,7 +23,6 @@ class LoginScr extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.start,
-
                       children: [
                         SizedBox(height: 60),
                         Text(
@@ -124,7 +123,6 @@ class LoginScr extends StatelessWidget {
                             ),
                           ),
                         ),
-
                         Container(
                           width: double.maxFinite,
                           height: 45,
@@ -160,7 +158,6 @@ class LoginScr extends StatelessWidget {
                                   contentPadding: const EdgeInsets.symmetric(
                                     vertical: 8,
                                   ),
-
                                   suffixIcon: Padding(
                                     padding: const EdgeInsets.only(
                                       right: 0.0,
@@ -346,14 +343,10 @@ class LoginScr extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: 20),
-
-
                         GestureDetector(
                           onTap: () {
                             con.launchInBrowser(
-                              Uri.parse(
-                                "https://www.bullkysms.com/register",
-                              ),
+                              Uri.parse("https://www.bullkysms.com/register"),
                             );
                           },
                           child: Row(
@@ -361,10 +354,7 @@ class LoginScr extends StatelessWidget {
                             children: [
                               Text(
                                 "Don't Have an Account?  ",
-                                style: TextStyle(
-                                  color:
-                                 Colors.white,
-                                ),
+                                style: TextStyle(color: Colors.white),
                               ),
                               Text(
                                 'Register',
