@@ -54,10 +54,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDI97EXYO9_w73bwqXJkvhpyWGWOJzhL2s',
-    appId: '1:32825633856:android:ed699ccec9e7d63fe183a5',
+    appId: '1:32825633856:android:13c13fe6cb2d11b3e183a5',
     messagingSenderId: '32825633856',
     projectId: 'cure-83f54',
     databaseURL: 'https://cure-83f54.firebaseio.com',
     storageBucket: 'cure-83f54.firebasestorage.app',
   );
+
 }

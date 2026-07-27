@@ -31,7 +31,7 @@ subprojects {
     plugins.withType<com.android.build.gradle.api.AndroidBasePlugin> {
         subproject.extensions.configure<com.android.build.gradle.BaseExtension> {
             if (namespace == null) {
-                namespace = "app.com.bullkysms.${subproject.name.replace("-", "_")}"
+                namespace = "au.com.bullkysms.${subproject.name.replace("-", "_")}"
             }
         }
     }

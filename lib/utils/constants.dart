@@ -1,11 +1,11 @@
 import 'package:get/get.dart';
 
 class Constants extends GetxController {
-  static String environment = "local";
+  static String environment = "test";
   static String serverUrl = environment == "live"
-      ? 'https://www.primemedic.com.au/ajaxs/patient_app_v5/'
+      ? 'https://www.bullkysms.com/'
       : environment == "test"
-      ? "https://test.primemedic.com.au/ajaxs/patient_app_v5/"
+      ? "https://www.bullkysms.com/api-v3/"
       : 'http://39.61.32.75:7681/BullkySMS/api-v2/';
 
   static String websiteUrl = environment == "live"
@@ -23,4 +23,7 @@ class Constants extends GetxController {
   static String mobile = "";
   static String email = "";
   static String password = "";
+  static String simSlotNo = "";
+  static String mobileName = "";
+  static bool isLogin = false;
 }

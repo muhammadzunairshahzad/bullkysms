@@ -1,4 +1,4 @@
-package app.com.bullkysms
+package au.com.bullkysms
 
 import io.flutter.embedding.android.FlutterActivity
 

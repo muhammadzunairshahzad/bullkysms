@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:developer';
+
+import 'package:bullkysms/presentation/homepage/homepage_bin.dart';
 import 'package:bullkysms/utils/app_routes.dart';
+import 'package:bullkysms/utils/constants.dart';
 import 'package:bullkysms/utils/initial_bindings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -12,6 +15,8 @@ import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+
 import 'firebase_options.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -60,35 +65,12 @@ final List<DarwinNotificationCategory> darwinNotificationCategories =
         },
       ),
     ];
-// @pragma('vm:entry-point')
-// void callbackDispatcher() {
-//   Workmanager().executeTask((task, inputData) async {
-//     if (task == 'sms_task') {
-//       return Future.value(true);
-//     }
-//     return Future.value(true);
-//   });
-// }
+
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   log("Handling a background message: ${message.messageId}");
-  final notification = message.notification;
-  if (notification != null) {
-    flutterLocalNotificationsPlugin.show(
-      title: notification.title,
-      body: notification.body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'BullkySMS',
-          'BullkySMS',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-      ),
-      id: 0,
-    );
-  }
+  await HomepageCon.resolveAndStartPipeline();
 }
 
 RemoteMessage? globalInitialMessage;
@@ -97,12 +79,23 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  // await BullkySmsService.init();
   requestPermission();
+  WakelockPlus.enable();
   await initInfo();
   runApp(const MyApp());
 }
 
 void requestPermission() async {
+  if (await Permission.notification.isDenied) {
+    PermissionStatus status = await Permission.notification.request();
+    if (status.isGranted) {
+      log("Notification permission granted");
+    } else {
+      log("Notification permission denied");
+    }
+  }
+
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   NotificationSettings settings = await messaging.requestPermission(
     alert: true,
@@ -113,24 +106,9 @@ void requestPermission() async {
     provisional: false,
     sound: true,
   );
+
   if (kDebugMode) {
     log('User granted permission: ${settings.authorizationStatus}');
-  }
-  if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-    if (kDebugMode) {
-      log("User granted permission");
-    }
-  } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
-    if (kDebugMode) {
-      log("User granted provisional permission");
-    }
-  } else {
-    if (await Permission.notification.isDenied) {
-      await Permission.notification.request();
-    }
-    if (kDebugMode) {
-      log('User declined or has not accepted permission');
-    }
   }
 }
 
@@ -178,11 +156,24 @@ Future<void> initInfo() async {
       log("Notification clicked with payload: $payloadData");
     },
   );
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'BullkySMS',
+    'High Importance Notifications',
+    description: 'This channel is used for important notifications.',
+    importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+  );
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
+      ?.createNotificationChannel(channel);
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
     lastNotificationData = message.data;
     log("lastNotificationData $lastNotificationData");
     if (kDebugMode) {
-      log("..................onMessage..................");
+      log("....................onMessage....................");
     }
     if (kDebugMode) {
       log(
@@ -194,7 +185,12 @@ Future<void> initInfo() async {
         log('Message also contained a notification: ${message.notification}');
       }
     }
-
+    if (Constants.isLogin == true) {
+      HomepageCon.resolveAndStartPipeline();
+    }
+    int notificationId = DateTime.now().millisecondsSinceEpoch.remainder(
+      100000,
+    );
     BigTextStyleInformation bigTextStyleInformation = BigTextStyleInformation(
       message.notification!.body.toString(),
       htmlFormatBigText: true,
@@ -217,6 +213,7 @@ Future<void> initInfo() async {
           priority: Priority.high,
           styleInformation: bigTextStyleInformation,
           playSound: true,
+          enableVibration: true,
         );
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
@@ -232,7 +229,7 @@ Future<void> initInfo() async {
       body: message.notification?.body,
       notificationDetails: platformChannelSpecifics,
       payload: message.data['body'],
-      id: 0,
+      id: notificationId,
     );
   });
 

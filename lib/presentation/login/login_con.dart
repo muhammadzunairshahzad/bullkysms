@@ -16,23 +16,12 @@ class LoginCon extends GetxController {
   @override
   Future<void> onInit() async {
     super.onInit();
-    await debugPrintAllUsers();
     await autoLogin();
   }
 
   Future<void> launchInBrowser(Uri url) async {
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       throw Exception('Could not launch $url');
-    }
-  }
-
-  static Future<void> debugPrintAllUsers() async {
-    try {
-      final db = await SQLite.instance.database;
-      final users = await db.rawQuery('SELECT * FROM User');
-      developer.log("All users in database: $users");
-    } catch (e) {
-      developer.log("Error reading users: $e");
     }
   }
 
@@ -104,31 +93,30 @@ class LoginCon extends GetxController {
         UPDATE User SET
         Email = '${emailCon.text.trim()}',
         Password = '${passCon.text.trim()}',
-        Mobile = '${mobCon.text.trim()}',
-        APIKey = '${response["ApiKey"]}'
+        Mobile = '${mobCon.text.trim()}'
         WHERE UserID = 0
         """);
         } catch (e) {
           developer.log("Error: $e");
         }
-
         Constants.name = response["Name"];
         Constants.userID = response["UserID"];
         Constants.clientID = response["ClientID"];
-        Constants.clientID = response["ClientMobID"];
-        Constants.apiKey = response["ApiKey"];
+        Constants.clientMobID = response["ClientMobID"];
         Constants.mobile = mobCon.text.trim();
         Constants.email = emailCon.text.trim();
         Constants.password = passCon.text.trim();
-        Constants.clientMobID = response["ClientMobID"];
+        Constants.simSlotNo = response["SimSlotNo"];
+        Constants.mobileName = response["MobileName"];
+        Constants.isLogin = true;
         if (kDebugMode) {
-          print("${Constants.apiKey} - ${Constants.userID}");
+          print(Constants.userID);
         }
-        passCon.text = "";
         Get.offAllNamed(AppRoutes.home);
       } else {
         DialogUtils.errorDialog(msgResult);
         passCon.text = "";
+        Constants.isLogin = false;
       }
     }
   }
@@ -145,7 +133,6 @@ class LoginCon extends GetxController {
         final email = row["Email"]?.toString() ?? "";
         final password = row["Password"]?.toString() ?? "";
         final mobile = row["Mobile"]?.toString() ?? "";
-
         if (email.isNotEmpty && password.isNotEmpty && mobile.isNotEmpty) {
           emailCon.text = email;
           passCon.text = password;
