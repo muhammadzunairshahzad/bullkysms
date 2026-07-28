@@ -41,7 +41,7 @@ class LoginCon extends GetxController {
       passError.value = "";
     }
     if (mobCon.text.toString().length < 5) {
-      mobError.value = "Must Enter Valid Mobile";
+      mobError.value = "Must Enter Valid Mobile Number";
       mobNode.requestFocus();
       return;
     } else {
