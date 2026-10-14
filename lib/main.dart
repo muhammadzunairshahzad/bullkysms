@@ -142,7 +142,6 @@ Future<void> initInfo() async {
     requestAlertPermission: false,
     requestBadgePermission: false,
     requestSoundPermission: false,
-
     notificationCategories: darwinNotificationCategories,
   );
   var initializationsSettings = InitializationSettings(

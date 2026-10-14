@@ -10,7 +10,10 @@ import 'package:http/http.dart' as http;
 import 'constants.dart';
 
 class Functions {
-  static Future<dynamic> sendJson(jsonMap, page) async {
+  static Future<dynamic> sendJson(
+    Map<dynamic, dynamic> jsonMap,
+    String page,
+  ) async {
     if (await ConnectivityWrapper.instance.isConnected) {
       dynamic jsonData;
       dynamic response;

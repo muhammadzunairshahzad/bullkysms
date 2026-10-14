@@ -1,0 +1,3 @@
+-keep class androidx.work.impl.** { *; }
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod

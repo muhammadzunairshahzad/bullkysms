@@ -1,9 +1,9 @@
 import 'package:get/get.dart';
 
 class Constants extends GetxController {
-  static String environment = "test";
+  static String environment = "live";
   static String serverUrl = environment == "live"
-      ? 'https://www.bullkysms.com/'
+      ? 'https://www.bullkysms.com/api-v3/'
       : environment == "test"
       ? "https://www.bullkysms.com/api-v3/"
       : 'http://39.61.32.75:7681/BullkySMS/api-v2/';

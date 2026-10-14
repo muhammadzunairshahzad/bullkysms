@@ -1,3 +1,20 @@
+// Fix AGP AndroidLocationsException caused by duplicate environment variables (e.g. set by Android Studio)
+try {
+    val pe = Class.forName("java.lang.ProcessEnvironment")
+    val f = pe.getDeclaredField("theEnvironment")
+    f.isAccessible = true
+    val envMap = f.get(null) as? MutableMap<*, *>
+    val iterator = envMap?.entries?.iterator()
+    if (iterator != null) {
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.key.toString() == "ANDROID_PREFS_ROOT") {
+                iterator.remove()
+            }
+        }
+    }
+} catch (_: Throwable) {}
+
 pluginManagement {
     val flutterSdkPath =
         run {
@@ -19,7 +36,7 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.11.1" apply false
+    id("com.android.application") version "9.0.0" apply false
     // START: FlutterFire Configuration
     id("com.google.gms.google-services") version("4.3.15") apply false
     // END: FlutterFire Configuration

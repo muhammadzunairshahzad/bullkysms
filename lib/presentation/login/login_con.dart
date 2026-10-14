@@ -63,7 +63,7 @@ class LoginCon extends GetxController {
         'Token': Constants.appToken,
       };
       if (kDebugMode) {
-        print(jsonMap);
+        print("JsonMap: $jsonMap");
       }
       response = await Functions.sendJson(jsonMap, 'login');
       if (kDebugMode) {

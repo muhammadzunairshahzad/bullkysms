@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
+
 import 'color_constant.dart';
 import 'image_constant.dart';
 
@@ -67,7 +68,7 @@ class DialogUtils {
     isProgressVisible = false;
   }
 
-  static void successDialog(description, {required Function() onclick}) {
+  static void successDialog(String description, {required Function() onclick}) {
     Get.dialog(
       Builder(
         builder: (context) {
@@ -168,7 +169,7 @@ class DialogUtils {
     );
   }
 
-  static void errorDialog(description, {Function()? onclick}) {
+  static void errorDialog(String description, {Function()? onclick}) {
     Get.dialog(
       Builder(
         builder: (context) {
@@ -478,7 +479,14 @@ class DialogUtils {
     );
   }
 
-  static void infoTwoButtonDialog(title, desc, onTap1, onTap2, text1, text2) {
+  static void infoTwoButtonDialog(
+    String title,
+    String desc,
+    onTap1,
+    onTap2,
+    text1,
+    text2,
+  ) {
     Get.dialog(
       Builder(
         builder: (context) {

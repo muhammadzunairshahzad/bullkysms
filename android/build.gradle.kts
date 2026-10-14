@@ -15,24 +15,47 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
-}
-// Replace your existing subprojects namespace block with this:
 
 subprojects {
     val subproject = this
 
-    // 1. Force the namespace for the subproject
-    plugins.withType<com.android.build.gradle.api.AndroidBasePlugin> {
-        subproject.extensions.configure<com.android.build.gradle.BaseExtension> {
+    plugins.withId("com.android.library") {
+        subproject.extensions.configure<com.android.build.api.dsl.LibraryExtension> {
             if (namespace == null) {
                 namespace = "au.com.bullkysms.${subproject.name.replace("-", "_")}"
             }
+        }
+    }
+
+    plugins.withId("com.android.application") {
+        subproject.extensions.configure<com.android.build.api.dsl.ApplicationExtension> {
+            if (namespace == null) {
+                namespace = "au.com.bullkysms.${subproject.name.replace("-", "_")}"
+            }
+        }
+    }
+
+    subproject.afterEvaluate {
+        plugins.withId("com.android.library") {
+            subproject.extensions.configure<com.android.build.api.dsl.LibraryExtension> {
+                compileSdk = 36
+            }
+        }
+        plugins.withId("com.android.application") {
+            subproject.extensions.configure<com.android.build.api.dsl.ApplicationExtension> {
+                compileSdk = 36
+            }
+        }
+    }
+
+    tasks.withType<JavaCompile>().configureEach {
+        sourceCompatibility = "17"
+        targetCompatibility = "17"
+    }
+
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
 
@@ -49,4 +72,12 @@ subprojects {
             }
         }
     }
+}
+
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
 }

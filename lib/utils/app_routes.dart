@@ -15,7 +15,6 @@ class AppRoutes {
       page: () => const SplashScr(),
       bindings: [SplashBin()],
     ),
-
     GetPage(name: login, page: () => const LoginScr(), bindings: [SplashBin()]),
     GetPage(
       name: home,

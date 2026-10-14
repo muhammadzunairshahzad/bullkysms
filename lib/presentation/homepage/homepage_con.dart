@@ -58,7 +58,6 @@ class HomepageCon extends GetxController {
   RxList<SmsMessage> sim2Messages = <SmsMessage>[].obs;
   RxList<ServerSms> serverSmsList = <ServerSms>[].obs;
   StreamSubscription? _callSubscription;
-  String? _lastCallNumber;
 
   /// ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -67,13 +66,15 @@ class HomepageCon extends GetxController {
     super.onInit();
     // Ask permissions first, then init everything that needs them
     await askPermission();
-    loadSampleData();
+    await ensureCredentialsLoaded();
     initSmsReader();
     initBatteryInfo();
     startListening();
     _initCallListener();
     // Connectivity init handles first internet check + pipeline trigger
     await initConnectivity();
+    // Explicitly trigger SMS pipeline when homepage loads
+    unawaited(resolveAndStartPipeline());
     // BullkySmsService.start();
   }
 
@@ -105,7 +106,6 @@ class HomepageCon extends GetxController {
         case PhoneStateStatus.CALL_INCOMING:
           // state.number here is reliably the CALLER'S number on incoming
           incomingCallerNumber = state.number;
-          _lastCallNumber = state.number;
           developer.log("Incoming call FROM: ${state.number}");
           break;
 
@@ -126,13 +126,11 @@ class HomepageCon extends GetxController {
           }
           // Reset for next call
           incomingCallerNumber = null;
-          _lastCallNumber = null;
           break;
 
         case PhoneStateStatus.CALL_OUTGOING:
           // Outgoing — reset stored number, don't report
           incomingCallerNumber = null;
-          _lastCallNumber = null;
           developer.log("Outgoing call to: ${state.number}");
           break;
 
@@ -270,6 +268,38 @@ class HomepageCon extends GetxController {
     }
   }
 
+  /// Ensures credentials are loaded in [Constants] from SQLite if not present in memory.
+  static Future<bool> ensureCredentialsLoaded() async {
+    if (Constants.email.isNotEmpty &&
+        Constants.password.isNotEmpty &&
+        Constants.mobile.isNotEmpty) {
+      return true;
+    }
+    try {
+      final db = await SQLite.instance.database;
+      final queryData = await db.rawQuery(
+        "SELECT Email, Password, Mobile FROM User WHERE UserID = 0",
+      );
+      if (queryData.isNotEmpty) {
+        final row = queryData[0];
+        final email = row["Email"]?.toString() ?? "";
+        final password = row["Password"]?.toString() ?? "";
+        final mobile = row["Mobile"]?.toString() ?? "";
+        if (email.isNotEmpty && password.isNotEmpty && mobile.isNotEmpty) {
+          Constants.email = email;
+          Constants.password = password;
+          Constants.mobile = mobile;
+          Constants.isLogin = true;
+          developer.log("Credentials rehydrated from SQLite.");
+          return true;
+        }
+      }
+    } catch (e) {
+      developer.log("ensureCredentialsLoaded error: $e");
+    }
+    return false;
+  }
+
   /// ── Static: called from main.dart on notification receive ─────────────────
   /// Resolves any pending disk updates first, then starts the SMS pipeline.
   /// Safe to call even when controller may not be initialized yet — it uses
@@ -277,6 +307,14 @@ class HomepageCon extends GetxController {
 
   static Future<void> resolveAndStartPipeline() async {
     developer.log("=== resolveAndStartPipeline called ===");
+    final hasCreds = await ensureCredentialsLoaded();
+    if (!hasCreds) {
+      developer.log(
+        "resolveAndStartPipeline: Credentials not available. Cannot start pipeline.",
+      );
+      return;
+    }
+
     final canProceed = await _resolveAnyPendingUpdates();
 
     if (!canProceed) {
@@ -902,28 +940,6 @@ class HomepageCon extends GetxController {
   }
 
   void clearAllSms() => smsList.clear();
-
-  void loadSampleData() {
-    smsList.clear();
-    addMultipleSms([
-      IndividualSms(
-        number: '+923206621808',
-        message: 'Hello! Your appointment is confirmed for tomorrow at 10 AM.',
-        simSlot: 0,
-      ),
-      IndividualSms(
-        number: '+923196621808',
-        message: 'Test message for system verification.',
-        simSlot: 0,
-      ),
-      IndividualSms(
-        number: '+923336910787',
-        message:
-            'Welcome! Book your first appointment and get special discount.',
-        simSlot: 0,
-      ),
-    ]);
-  }
 
   Future<void> sendAllSms() async {
     if (smsList.isEmpty || isSending.value) return;

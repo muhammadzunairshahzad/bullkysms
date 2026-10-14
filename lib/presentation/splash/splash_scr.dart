@@ -5,7 +5,7 @@ class SplashScr extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final con = Get.put(SplashCon());
+    Get.put(SplashCon());
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(gradient: CColor.backgroundGradient),
