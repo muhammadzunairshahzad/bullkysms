@@ -20,6 +20,10 @@ subprojects {
     val subproject = this
 
     plugins.withId("com.android.library") {
+        if (!subproject.plugins.hasPlugin("org.jetbrains.kotlin.android") &&
+            !subproject.plugins.hasPlugin("kotlin-android")) {
+            subproject.plugins.apply("org.jetbrains.kotlin.android")
+        }
         subproject.extensions.configure<com.android.build.api.dsl.LibraryExtension> {
             if (namespace == null) {
                 namespace = "au.com.bullkysms.${subproject.name.replace("-", "_")}"

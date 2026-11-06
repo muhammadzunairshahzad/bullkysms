@@ -26,4 +26,7 @@ class Constants extends GetxController {
   static String simSlotNo = "";
   static String mobileName = "";
   static bool isLogin = false;
+  static RxString error = "".obs;
+  static RxString error2 = "".obs;
+  static String token2 = "";
 }

@@ -217,7 +217,12 @@ class ReceivedEventQueue {
               : 'Android',
           'UserName': Constants.email,
           'Password': Constants.password,
-          'Mobile': events.map((e) => e.mobile).toList(),
+          'Mobile': events
+              .map(
+                (e) =>
+                    e.mobile.startsWith('+') ? e.mobile.substring(1) : e.mobile,
+              )
+              .toList(),
           'Message': events.map((e) => e.message).toList(),
           'SMSDate': events.map((e) => e.receivedAt.toIso8601String()).toList(),
           'AppVersion': "1.0",

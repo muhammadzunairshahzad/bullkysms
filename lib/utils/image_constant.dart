@@ -5,5 +5,6 @@ class ImageConstant {
 
   static String appLogo = '${imagesURI}logo.png';
   static String appLogoBlack = '${imagesURI}logo_black.png';
+  static String appLogoAvatar = '${imagesURI}logo_avatar.png';
   static String logoAnim = '$animURI/logo_anim.gif';
 }

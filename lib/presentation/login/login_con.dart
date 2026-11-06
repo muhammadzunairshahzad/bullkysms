@@ -59,12 +59,15 @@ class LoginCon extends GetxController {
         'UserName': emailCon.text.trim(),
         'Password': passCon.text.trim(),
         'Mobile': mobCon.text.trim(),
-        'AppVersion': "1.0",
+        'AppVersion': 3.7,
         'Token': Constants.appToken,
       };
       if (kDebugMode) {
+        developer.log("JsonMap: $jsonMap");
         print("JsonMap: $jsonMap");
+        print("Token sent to API: ${Constants.appToken}");
       }
+
       response = await Functions.sendJson(jsonMap, 'login');
       if (kDebugMode) {
         print(response);
@@ -109,6 +112,7 @@ class LoginCon extends GetxController {
         Constants.simSlotNo = response["SimSlotNo"];
         Constants.mobileName = response["MobileName"];
         Constants.isLogin = true;
+        Constants.token2 = response["Token"] ?? "";
         if (kDebugMode) {
           print(Constants.userID);
         }
@@ -127,7 +131,7 @@ class LoginCon extends GetxController {
       final queryData = await db.rawQuery(
         "SELECT Email, Password, Mobile FROM User WHERE UserID = 0",
       );
-      developer.log("QueryData: ${queryData.toString()}");
+
       if (queryData.isNotEmpty) {
         final row = queryData[0];
         final email = row["Email"]?.toString() ?? "";

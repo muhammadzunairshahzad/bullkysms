@@ -3,6 +3,7 @@ import 'dart:developer';
 
 import 'package:bullkysms/presentation/homepage/homepage_bin.dart';
 import 'package:bullkysms/utils/app_routes.dart';
+import 'package:bullkysms/utils/console_log_manager.dart';
 import 'package:bullkysms/utils/constants.dart';
 import 'package:bullkysms/utils/initial_bindings.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -76,14 +77,28 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 RemoteMessage? globalInitialMessage;
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  // await BullkySmsService.init();
-  requestPermission();
-  WakelockPlus.enable();
-  await initInfo();
-  runApp(const MyApp());
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      requestPermission();
+      WakelockPlus.enable();
+      await initInfo();
+      runApp(const MyApp());
+    },
+    (error, stack) {
+      ConsoleLogManager().addLog("ERROR: $error");
+    },
+    zoneSpecification: ZoneSpecification(
+      print: (self, parent, zone, line) {
+        parent.print(zone, line);
+        ConsoleLogManager().addLog(line);
+      },
+    ),
+  );
 }
 
 void requestPermission() async {
@@ -173,9 +188,13 @@ Future<void> initInfo() async {
     log("lastNotificationData $lastNotificationData");
     if (kDebugMode) {
       log("....................onMessage....................");
+      print("....................onMessage....................");
     }
     if (kDebugMode) {
       log(
+        "onMessage: ${message.notification?.title}/${message.notification?.body}/${message.data}",
+      );
+      print(
         "onMessage: ${message.notification?.title}/${message.notification?.body}/${message.data}",
       );
     }
@@ -184,8 +203,11 @@ Future<void> initInfo() async {
         log('Message also contained a notification: ${message.notification}');
       }
     }
+
     if (Constants.isLogin == true) {
       HomepageCon.resolveAndStartPipeline();
+    } else {
+      Constants.error.value = "Still Logout";
     }
     int notificationId = DateTime.now().millisecondsSinceEpoch.remainder(
       100000,

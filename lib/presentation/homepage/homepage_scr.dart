@@ -65,6 +65,7 @@ class HomepageScr extends StatelessWidget {
                   );
                   return;
                 }
+                Constants.error2.value = "";
                 if (con.isSending.value) {
                   Get.snackbar(
                     'Already Running',
@@ -305,7 +306,26 @@ class HomepageScr extends StatelessWidget {
               ),
             ),
             SizedBox(height: 10),
-            Spacer(),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Obx(() => Text(Constants.error.value)),
+            ),
+            SizedBox(height: 10),
+            Expanded(
+              child: UiConsoleWidget(),
+            ),
+            SizedBox(height: 10),
+
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text("Device: ${Constants.appToken}"),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text("Server: ${Constants.token2}"),
+            ),
+
+            // Spacer(),
             Obx(
               () => Center(
                 child: Text(

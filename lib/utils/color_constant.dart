@@ -6,8 +6,8 @@ class CColor {
   static Color primaryELight = fromHex('#FFA3D1');
   static Color red = fromHex('#E30000');
   static Color secondary = fromHex('#3C8DBC');
-  static Color secondary2 = fromHex('#368CCC');
-  static Color secondary3 = fromHex('#F4A300');
+  static Color secondary2 = fromHex('#E31800');
+  static Color secondary3 = fromHex('#0F1528');
   static Color homeBack = fromHex('#EDF1FD');
   static Color videoBtn = fromHex('#6A78C9');
   static Color background = fromHex('#13181C');
@@ -15,11 +15,12 @@ class CColor {
   static Color text2 = fromHex('#757575');
   static Color divider = fromHex('#BDBDBD');
   static LinearGradient backgroundGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    transform: const GradientRotation(135 * 3.14159 / 180),
-    colors: [const Color(0xFF5F2C82), const Color(0xFF49A09D)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    // transform: const GradientRotation(135 * 3.14159 / 180),
+    colors: [fromHex('#E31800'), fromHex('#E31800'), Colors.white],
   );
+
   static Color fromHex(String hexString) {
     final buffer = StringBuffer();
     if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');

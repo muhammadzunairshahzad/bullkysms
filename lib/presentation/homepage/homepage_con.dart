@@ -13,7 +13,7 @@ void backgroundMessageHandler(SmsMessage message) async {
 
 enum SmsStatus { pending, sending, sent, failed }
 
-/// ── Controller ─────────────────────────────────────────────────────────────
+/// ── Controller ────────────────────────────────────────────────────────────
 
 class HomepageCon extends GetxController {
   /// ── Constants ─────────────────────────────────────────────────────────────
@@ -58,27 +58,60 @@ class HomepageCon extends GetxController {
   RxList<SmsMessage> sim2Messages = <SmsMessage>[].obs;
   RxList<ServerSms> serverSmsList = <ServerSms>[].obs;
   StreamSubscription? _callSubscription;
+  final ConsoleLogManager _logManager = ConsoleLogManager();
+
+  var logs = <String>[].obs;
+
+  final ScrollController scrollController = ScrollController();
+  late StreamSubscription<String> _subscription;
 
   /// ── Lifecycle ─────────────────────────────────────────────────────────────
 
   @override
   void onInit() async {
     super.onInit();
-    // Ask permissions first, then init everything that needs them
+    logs.assignAll(_logManager.logs);
+    _subscription = _logManager.logStream.listen((_) {
+      logs.assignAll(_logManager.logs);
+      scrollToBottom();
+    });
     await askPermission();
     await ensureCredentialsLoaded();
     initSmsReader();
     initBatteryInfo();
     startListening();
     _initCallListener();
-    // Connectivity init handles first internet check + pipeline trigger
     await initConnectivity();
-    // Explicitly trigger SMS pipeline when homepage loads
+
     unawaited(resolveAndStartPipeline());
-    // BullkySmsService.start();
   }
 
   Timer? _periodicInternetTimer;
+
+  void clearLogs() {
+    _logManager.clearLogs();
+    logs.clear();
+  }
+
+  void copyLogs() {
+    Clipboard.setData(ClipboardData(text: logs.join('\n')));
+    Get.snackbar(
+      "Success",
+      "Logs copied to clipboard",
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 1),
+    );
+  }
+
+  void scrollToBottom() {
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    }
+  }
 
   @override
   void onClose() {
@@ -86,6 +119,8 @@ class HomepageCon extends GetxController {
     _connectivitySubscription?.cancel();
     _callSubscription?.cancel();
     _periodicInternetTimer?.cancel();
+    _subscription.cancel();
+    scrollController.dispose();
     developer.log("HomepageCon disposed.");
     super.onClose();
   }
@@ -307,11 +342,15 @@ class HomepageCon extends GetxController {
 
   static Future<void> resolveAndStartPipeline() async {
     developer.log("=== resolveAndStartPipeline called ===");
+    Constants.error.value = "Inside resolveAndStartPipeline";
     final hasCreds = await ensureCredentialsLoaded();
     if (!hasCreds) {
       developer.log(
         "resolveAndStartPipeline: Credentials not available. Cannot start pipeline.",
       );
+
+      Constants.error.value =
+          "resolveAndStartPipeline: Credentials not available. Cannot start pipeline.";
       return;
     }
 
@@ -322,6 +361,9 @@ class HomepageCon extends GetxController {
         "resolveAndStartPipeline: Failover unresolved. "
         "Will retry on next internet restore.",
       );
+      Constants.error.value =
+          "resolveAndStartPipeline: Failover unresolved. "
+          "Will retry on next internet restore.";
       return;
     }
 
@@ -329,11 +371,15 @@ class HomepageCon extends GetxController {
     // so reactive UI fields (progress, campaign name etc.) update correctly
     if (Get.isRegistered<HomepageCon>()) {
       developer.log("Controller found — running full pipeline via instance.");
+      Constants.error.value =
+          "Controller found — running full pipeline via instance.";
       await Get.find<HomepageCon>().startServerSmsPipeline();
     } else {
       // Called from main.dart before controller exists — do a lightweight
       // fetch+send without UI updates
       developer.log("Controller not registered — running headless pipeline.");
+      Constants.error.value =
+          "Controller not registered — running headless pipeline.";
       await _headlessPipeline();
     }
   }
@@ -505,6 +551,7 @@ class HomepageCon extends GetxController {
       final response = await Functions.sendJson(jsonMap, 'sms_get');
 
       if (kDebugMode) print("smsGet response: $response");
+      Constants.error2.value = "$response";
 
       if (response == null || response == '') return null;
       if (response["DocType"] == "Error") return null;
@@ -530,12 +577,13 @@ class HomepageCon extends GetxController {
   Future<void> startServerSmsPipeline() async {
     if (isServerSmsSending.value) {
       developer.log("Pipeline already running.");
+      Constants.error.value = "Pipeline already running.";
       return;
     }
-
     isServerSmsSending.value = true;
     isSending.value = true;
     developer.log("=== SMS Pipeline Started ===");
+    Constants.error.value = "=== SMS Pipeline Started ===";
 
     try {
       while (true) {
@@ -543,6 +591,7 @@ class HomepageCon extends GetxController {
 
         if (response == null) {
           developer.log("Pipeline: null response, stopping.");
+          Constants.error.value = "Pipeline: null response, stopping.";
           break;
         }
 
@@ -551,16 +600,15 @@ class HomepageCon extends GetxController {
 
         if (total == 0) {
           developer.log("Pipeline: No pending SMS. Done.");
+          Constants.error.value = "Pipeline: No pending SMS. Done.";
           break;
         }
 
         final List<dynamic> detailList = response["Detail"] ?? [];
         if (detailList.isEmpty) break;
-
         final batch = detailList
             .map((item) => ServerSms.fromJson(item as Map<String, dynamic>))
             .toList();
-
         serverSmsList.assignAll(batch);
         serverTotalSms.value = total;
         serverSentCount.value = 0;
@@ -568,13 +616,15 @@ class HomepageCon extends GetxController {
         sentSMS.value = "0";
         currentCampaignName.value = batch.first.campaignName;
         developer.log("Pipeline: Sending ${batch.length} SMS...");
-
+        Constants.error.value = "Pipeline: Sending ${batch.length} SMS...";
         final sentList = await _sendServerSmsBatch(batch);
 
         developer.log("Pipeline: Sent ${sentList.length}/${batch.length}.");
-
+        Constants.error.value =
+            "Pipeline: Sent ${sentList.length}/${batch.length}.";
         if (sentList.isEmpty) {
           developer.log("Pipeline: Nothing sent, stopping.");
+          Constants.error.value = "Pipeline: Nothing sent, stopping.";
           break;
         }
 
@@ -641,6 +691,8 @@ class HomepageCon extends GetxController {
     final phoneStatus = await Permission.phone.status;
     if (!smsStatus.isGranted || !phoneStatus.isGranted) {
       developer.log("Headless: Missing SMS/Phone permission, aborting.");
+      Constants.error.value =
+          "Headless: Missing SMS/Phone permission, aborting.";
       return;
     }
 
@@ -650,6 +702,8 @@ class HomepageCon extends GetxController {
 
       if (targetSim == null) {
         developer.log("Headless: No SIM found after retries, stopping.");
+        Constants.error.value =
+            "Headless: No SIM found after retries, stopping.";
         return;
       }
 
